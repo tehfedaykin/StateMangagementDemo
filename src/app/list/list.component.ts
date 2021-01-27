@@ -3,6 +3,9 @@ import { Villager, Personality, Species, Hobby, VillagerSortOptions, AcnhApiServ
 import { MatCheckbox, MatCheckboxChange } from '@angular/material/checkbox';
 import { MatExpansionPanel} from '@angular/material/expansion';
 import { MatSelectChange } from '@angular/material/select';
+import { Observable } from 'rxjs';
+import { VillagerStateService } from './villager-state.service';
+import { map, tap } from 'rxjs/operators';
 
 interface CheckboxGroup {
   attribute: VillagerSortOptions,
@@ -17,8 +20,7 @@ export class VillagerListComponent implements OnInit {
   @ViewChild(MatExpansionPanel) accordion!: MatExpansionPanel;
   @ViewChildren(MatCheckbox) checkboxes!: QueryList<MatCheckbox>;
 
-  private villagers: Villager[] = [];
-  public displayedVillagers: Villager[] = [];
+  public displayedVillagers$!: Observable<Villager[]>;
   private checkSelection: VillagerSortOptions[] = [];
   public sortOptions = ["personality", "species", "hobby", "birthday"];
   public checkBoxList: CheckboxGroup[] = [
@@ -36,12 +38,14 @@ export class VillagerListComponent implements OnInit {
     }
   ]
 
-  constructor(private apiService: AcnhApiService) { }
+  constructor(private stateService: VillagerStateService) { }
 
   ngOnInit(): void {
-    this.apiService.getVillagers().subscribe((villagers: Villager[]) => {
-      this.displayedVillagers = this.villagers = villagers;
-    });
+    this.stateService.loadVillagers();
+    this.displayedVillagers$ = this.stateService.state$.pipe(
+      map((state) => this.stateService.updateDisplayedVillagers(state)),
+      tap((state) => console.log('state changed', state))
+    )
   }
 
   sortList(list: Villager[], property: VillagerSortOptions): Villager[] {
@@ -75,26 +79,16 @@ export class VillagerListComponent implements OnInit {
 
   filterList() {
     this.accordion.close();
-    const filters = this.checkSelection;
-    this.displayedVillagers = this.villagers.filter((villager: Villager) => {
-      const villagerVals = Object.values(villager);
-      const villagerHasTrait = villagerVals.some(r=> filters.includes(r));
-      return villagerHasTrait;
-    })
+    this.stateService.selectFilters(this.checkSelection);
   }
 
   showFavorites(change: any) {
     this.accordion.close();
-    if(change.checked) {
-      this.displayedVillagers = this.villagers.filter(villager => villager.favorite);
-    }
-    else {
-      this.filterList();
-    }
+    this.stateService.showFavorites(change.checked);
   }
 
   setSort(event: MatSelectChange): void {
-    this.sortList(this.villagers, event.value);
+    this.stateService.selectSort(event.value);
   }
 
   checkboxChecked(change: MatCheckboxChange) {
@@ -104,16 +98,11 @@ export class VillagerListComponent implements OnInit {
 
   favoriteVillager(event: any, villagerToFav: Villager) {
     event.stopPropagation();
-    this.villagers = this.villagers.map((villager) => {
-      if(villager.id === villagerToFav.id) {
-        villager.favorite = !villager.favorite;
-      }
-      return villager;
-    });
+    this.stateService.favoriteVillager(villagerToFav);
   }
 
   reset() {
-    this.displayedVillagers = this.villagers;
+    this.stateService.resetSortFilter();
     this.checkSelection = [];
     this.checkboxes.forEach((checkbox) => {
       if(checkbox.checked) {
