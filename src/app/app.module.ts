@@ -21,6 +21,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
 
+import { StoreModule } from '@ngrx/store';
+import { reducers } from './+state/reducers';
+import { VillagerEffects } from './+state/effects';
+import { EffectsModule } from '@ngrx/effects';
+
 const routes: Routes = [
   {
     path: 'villagers',
@@ -54,8 +59,9 @@ const routes: Routes = [
     MatFormFieldModule,
     MatChipsModule,
     MatSelectModule,
-    HttpClientModule
-    
+    HttpClientModule,
+    StoreModule.forRoot({villagerReducer: reducers}),
+    EffectsModule.forRoot([VillagerEffects])    
   ],
   providers: [],
   bootstrap: [AppComponent]

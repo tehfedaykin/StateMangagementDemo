@@ -21,6 +21,8 @@
     "@angular/platform-browser": "~11.1.0",
     "@angular/platform-browser-dynamic": "~11.1.0",
     "@angular/router": "~11.1.0",
+    "@ngrx/effects": "^10.1.2",
+    "@ngrx/store": "^10.1.2",
     "camelcase-keys": "^6.2.2",
     "rxjs": "~6.6.0",
     "tslib": "^2.0.0",
