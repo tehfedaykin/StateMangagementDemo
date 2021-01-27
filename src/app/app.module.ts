@@ -20,6 +20,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
+import { AkitaNgDevtools } from '@datorama/akita-ngdevtools';
+import { environment } from '../environments/environment';
 
 const routes: Routes = [
   {
@@ -54,7 +56,8 @@ const routes: Routes = [
     MatFormFieldModule,
     MatChipsModule,
     MatSelectModule,
-    HttpClientModule
+    HttpClientModule,
+    environment.production ? [] : AkitaNgDevtools.forRoot()
     
   ],
   providers: [],
