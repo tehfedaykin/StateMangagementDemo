@@ -3,6 +3,8 @@ import { Villager, Personality, Species, Hobby, VillagerSortOptions, AcnhApiServ
 import { MatCheckbox, MatCheckboxChange } from '@angular/material/checkbox';
 import { MatExpansionPanel} from '@angular/material/expansion';
 import { MatSelectChange } from '@angular/material/select';
+import { BehaviorSubject, combineLatest, merge, Observable, Subject } from 'rxjs';
+import { map, mapTo } from 'rxjs/operators';
 
 interface CheckboxGroup {
   attribute: VillagerSortOptions,
@@ -18,7 +20,7 @@ export class VillagerListComponent implements OnInit {
   @ViewChildren(MatCheckbox) checkboxes!: QueryList<MatCheckbox>;
 
   private villagers: Villager[] = [];
-  public displayedVillagers: Villager[] = [];
+  public displayedVillagers$!: Observable<Villager[]>;
   private checkSelection: VillagerSortOptions[] = [];
   public sortOptions = ["personality", "species", "hobby", "birthday"];
   public checkBoxList: CheckboxGroup[] = [
@@ -35,13 +37,38 @@ export class VillagerListComponent implements OnInit {
       list: Object.values(Hobby)
     }
   ]
+  private selectedSortOption$ = new BehaviorSubject<VillagerSortOptions | undefined>(undefined);
+  private filterOptions$ = new BehaviorSubject<VillagerSortOptions[]>([]);
+  private reset$ = new Subject<boolean>();
 
   constructor(private apiService: AcnhApiService) { }
 
   ngOnInit(): void {
-    this.apiService.getVillagers().subscribe((villagers: Villager[]) => {
-      this.displayedVillagers = this.villagers = villagers;
-    });
+
+    const villagers$: Observable<Villager[]> = this.apiService.getVillagers();
+
+    const sortReset$ = this.reset$.pipe((
+      mapTo(undefined)
+    ))
+    const selectedSortOptions$ = merge(this.selectedSortOption$, sortReset$);
+
+    const filterReset$ = this.reset$.pipe((
+      mapTo([])
+    ));
+    const filterOptions$: Observable<VillagerSortOptions[] | []> = merge(this.filterOptions$, filterReset$)
+
+    this.displayedVillagers$ = combineLatest([villagers$, selectedSortOptions$, filterOptions$]).pipe(
+      map(([villagers, sortOption, filterOptions]) => {
+        const villagerList = filterOptions.length ? villagers.filter((villager: Villager) => {
+          const villagerVals: string[] = Object.values(villager);
+          const filters = filterOptions as string[];
+          const villagerHasTrait = villagerVals.some((trait) => filters.includes(trait))
+          return villagerHasTrait;
+        }) : villagers;
+
+        return sortOption ? this.sortList(villagerList, sortOption) : villagerList
+      })
+    )
   }
 
   sortList(list: Villager[], property: VillagerSortOptions): Villager[] {
@@ -75,26 +102,21 @@ export class VillagerListComponent implements OnInit {
 
   filterList() {
     this.accordion.close();
-    const filters = this.checkSelection;
-    this.displayedVillagers = this.villagers.filter((villager: Villager) => {
-      const villagerVals = Object.values(villager);
-      const villagerHasTrait = villagerVals.some(r=> filters.includes(r));
-      return villagerHasTrait;
-    })
+    this.filterOptions$.next(this.checkSelection);
   }
 
   showFavorites(change: any) {
     this.accordion.close();
-    if(change.checked) {
-      this.displayedVillagers = this.villagers.filter(villager => villager.favorite);
-    }
-    else {
-      this.filterList();
-    }
+    // if(change.checked) {
+    //   this.displayedVillagers = this.villagers.filter(villager => villager.favorite);
+    // }
+    // else {
+    //   this.filterList();
+    // }
   }
 
-  setSort(event: MatSelectChange): void {
-    this.sortList(this.villagers, event.value);
+  setSort(value: VillagerSortOptions): void {
+    this.selectedSortOption$.next(value);
   }
 
   checkboxChecked(change: MatCheckboxChange) {
@@ -113,7 +135,7 @@ export class VillagerListComponent implements OnInit {
   }
 
   reset() {
-    this.displayedVillagers = this.villagers;
+    this.reset$.next(true);
     this.checkSelection = [];
     this.checkboxes.forEach((checkbox) => {
       if(checkbox.checked) {
